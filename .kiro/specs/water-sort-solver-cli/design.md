@@ -91,8 +91,8 @@ sequenceDiagram
 
     User->>Main: uv run python main.py --input puzzle.yaml
     Main->>Parser: parse_file(path, format)
-    Parser-->>Main: PuzzleState
-    Main->>Validator: validate(state)
+    Parser-->>Main: (PuzzleState, bottle_capacity)
+    Main->>Validator: validate(state, bottle_capacity)
     Validator-->>Main: ValidationResult
     alt 既に解決済み
         Main-->>User: パズルはすでに解決されています（exit 0）
@@ -294,8 +294,8 @@ def main() -> None:
 def build_parser() -> argparse.ArgumentParser:
     """引数パーサを構築して返す。"""
 
-def run(args: argparse.Namespace) -> int:
-    """解析済み引数を受け取り、処理を実行して終了コードを返す。"""
+def run(args: CLIArgs) -> int:
+    """CLIArgs を受け取り、処理を実行して終了コードを返す。"""
 ```
 
 **終了コード定義**:
@@ -660,7 +660,7 @@ flowchart TD
 - `InputParser`: YAML/JSON/テキスト形式の正常パース・`FileNotFoundError`・`ParseError` の各ケース
 - `PuzzleValidator`: 有効状態・無効状態（色不整合、ボトル 0 本）・解決済み判定
 - `Solver.get_legal_moves()`: 合法手の正確な列挙（複数ケース）
-- `Solver.apply_move()`: ムーブ適用後の状態の正確性と元状態の不変性
+- `models.apply_move()`: ムーブ適用後の状態の正確性と元状態の不変性
 - `OutputFormatter`: text/json/yaml 各フォーマットの出力文字列検証
 
 ### Integration Tests
