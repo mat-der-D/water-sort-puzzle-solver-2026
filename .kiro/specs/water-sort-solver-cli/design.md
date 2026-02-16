@@ -134,7 +134,7 @@ graph LR
 | 1.1 | `--input` オプションでファイル受け取り | ArgParser | `CLIArgs.input_path` | メインフロー |
 | 1.2 | 指定ファイルの読み込みと解析 | InputParser | `parse_file()` | メインフロー |
 | 1.3 | YAML/JSON/テキスト形式対応 | InputParser | `parse_file(format)` | メインフロー |
-| 1.4 | ボトル数・容量の認識 | InputParser, PuzzleValidator | `PuzzleState`, `validate()` | メインフロー |
+| 1.4 | ボトル数・容量の認識 | InputParser, PuzzleValidator | `parse_file()` → `(PuzzleState, int)`, `validate(state, bottle_capacity)` | メインフロー |
 | 1.5 | 4〜20 本・4 セグメント対応 | PuzzleValidator | `validate()` | メインフロー |
 | 2.1 | 色セグメント数の整合検証 | PuzzleValidator | `validate()` | メインフロー |
 | 2.2 | 不整合時エラー終了 | PuzzleValidator, Main | `ValidationResult` | メインフロー |
@@ -198,12 +198,17 @@ graph LR
 ##### State Management
 
 ```python
+from __future__ import annotations
 from typing import NamedTuple, Literal
+from dataclasses import dataclass, field
 
 # ボトル内のセグメントを下から上の順に格納する immutable タプル
 BottleState = tuple[str, ...]
 # パズル全体の状態（hashable で set に格納可能）
 PuzzleState = tuple[BottleState, ...]
+
+# 標準ボトル容量（要件 1.5: 容量 4 セグメント）
+BOTTLE_CAPACITY: int = 4
 
 class Move(NamedTuple):
     from_bottle: int  # 0-indexed
@@ -223,15 +228,37 @@ class ValidationResult(NamedTuple):
 Strategy = Literal["bfs", "dfs"]
 OutputFormat = Literal["text", "json", "yaml"]
 
+@dataclass
+class CLIArgs:
+    """argparse.Namespace の型付きラッパー（要件 1.1, 3.3–3.5, 4.4–4.5, 5.1–5.5）"""
+    input_path: str                              # --input（必須）
+    validate_only: bool = False                  # --validate
+    strategy: Strategy = "bfs"                  # --strategy
+    timeout: float = 30.0                        # --timeout（0 でタイムアウトなし）
+    output_format: OutputFormat = "text"         # --format
+    output_path: str | None = None               # --output
+    verbose: bool = False                        # --verbose
+    debug: bool = False                          # --debug
+
 class ParseError(ValueError):
     """入力ファイルの解析エラー"""
 
 class PuzzleTimeoutError(Exception):
     """解探索のタイムアウト"""
+
+# --- 純粋状態変換関数（副作用なし、solver.py・formatter.py から共有） ---
+
+def apply_move(state: PuzzleState, move: Move) -> PuzzleState:
+    """
+    ムーブを適用した新しい PuzzleState を返す。元の state は変更しない。
+    Preconditions: move は get_legal_moves() で得た合法手であること
+    Postconditions: 戻り値は move 適用後の immutable PuzzleState
+    """
 ```
 
 - **Persistence**: インメモリ（ファイル永続化なし）
 - **Concurrency**: シングルスレッド（探索はメインスレッドで同期実行）
+- **Note**: `apply_move()` は副作用のない純粋変換関数として `models.py` に定義し、`solver.py`（探索中の状態生成）と `formatter.py`（verbose モードの中間状態再生成）の両方から参照する。
 
 ---
 
@@ -315,11 +342,13 @@ def run(args: argparse.Namespace) -> int:
 def parse_file(
     path: str,
     fmt: Literal["yaml", "json", "text", "auto"] = "auto",
-) -> PuzzleState:
+) -> tuple[PuzzleState, int]:
     """
-    指定パスのファイルを読み込み PuzzleState を返す。
+    指定パスのファイルを読み込み (PuzzleState, bottle_capacity) を返す。
     Preconditions: path は読み取り可能なファイルパスであること
-    Postconditions: 戻り値は tuple[tuple[str, ...], ...] 形式
+    Postconditions: PuzzleState は tuple[tuple[str, ...], ...] 形式
+                    bottle_capacity は全ボトルの最大セグメント数（空ボトルのみの場合は BOTTLE_CAPACITY）
+                    全ボトルのセグメント数が一致しない場合は ParseError を raise
     Raises: FileNotFoundError, ParseError
     """
 ```
@@ -374,10 +403,14 @@ blue green red blue
 ##### Service Interface
 
 ```python
-def validate(state: PuzzleState) -> ValidationResult:
+def validate(
+    state: PuzzleState,
+    bottle_capacity: int = BOTTLE_CAPACITY,
+) -> ValidationResult:
     """
     PuzzleState を検証して ValidationResult を返す。
     Preconditions: state は parse_file() で生成されたタプル
+                   bottle_capacity は parse_file() が返す検出容量（デフォルト: BOTTLE_CAPACITY=4）
     Postconditions: valid=True かつ already_solved=True の場合は解決済み通知
     Invariants: valid=False の場合 error_message は None でない
     """
@@ -387,7 +420,8 @@ def is_solved(state: PuzzleState) -> bool:
 ```
 
 **Implementation Notes**
-- Validation: 色ごとの出現回数を `collections.Counter` で集計し、ボトル容量との整合を確認
+- Validation: 色ごとの出現回数を `collections.Counter` で集計し、`bottle_capacity` との整合を確認（各色の総セグメント数が `bottle_capacity` の倍数であること）
+- Capacity 検出: `parse_file()` は全ボトルの最大セグメント数（`max(len(b) for b in state, default=BOTTLE_CAPACITY)`）を容量として `main.py` へ返し、`validate()` の `bottle_capacity` 引数に渡す。ボトル長が混在する場合はパーサが `ParseError` を raise する。
 - Risks: 空ボトルの扱い（空タプル `()` を有効な状態として許容）
 
 ---
@@ -432,8 +466,7 @@ def solve(
 def get_legal_moves(state: PuzzleState) -> list[Move]:
     """現在の状態から合法手の一覧を返す。"""
 
-def apply_move(state: PuzzleState, move: Move) -> PuzzleState:
-    """ムーブを適用した新しい PuzzleState を返す。元の state は変更しない。"""
+# apply_move() は models.py に定義。solver.py はそれを import して使用する。
 ```
 
 **Implementation Notes**
@@ -504,7 +537,7 @@ def write_output(content: str, output_path: str | None = None) -> None:
 ```
 
 **Implementation Notes**
-- Integration: `--verbose` の各ステップ表示は `apply_move()` を順次適用して中間状態を生成
+- Integration: `--verbose` の各ステップ表示は `models.apply_move()` を順次適用して中間状態を生成する（Output → Models の依存はレイヤー設計で許容済み。Output → Core の依存は生じない）
 - Validation: `fmt` が `text|json|yaml` 以外の場合は `ValueError` を raise（argparse の `choices` で事前防止）
 - Risks: 出力ファイルのパス不正時は `OSError` を捕捉して stderr に出力
 
