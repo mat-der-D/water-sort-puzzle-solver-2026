@@ -2,7 +2,7 @@
 
 ## はじめに
 
-Water Sort Puzzle ソルバ CLI は、ウォーターソートパズル（カラーウォーターソーティングゲーム）の初期状態をコマンドライン引数またはファイルで受け取り、最短または有効な手順を自動探索して解を出力する Python 製 CLI ツールである。ユーザーはパズルの盤面をテキストで記述し、ツールを実行するだけで解法ステップを取得できる。
+Water Sort Puzzle ソルバ CLI は、ウォーターソートパズル（カラーウォーターソーティングゲーム）の初期状態をファイルで受け取り、最短または有効な手順を自動探索して解を出力する Python 製 CLI ツールである。ユーザーはパズルの盤面をテキストで記述し、ツールを実行するだけで解法ステップを取得できる。
 
 ## 要件
 
@@ -12,7 +12,7 @@ Water Sort Puzzle ソルバ CLI は、ウォーターソートパズル（カラ
 
 #### 受け入れ基準
 
-1. The Water Sort Solver CLI shall ボトル配列を標準入力またはファイル（`--input` オプション）から受け取ること
+1. The Water Sort Solver CLI shall ボトル配列をファイル（`--input` オプション）からのみ受け取ること
 2. When `--input` オプションにファイルパスが指定された場合、the Water Sort Solver CLI shall 指定ファイルを読み込んでパズル状態を解析すること
 3. The Water Sort Solver CLI shall ボトルをYAML・JSON・またはシンプルなテキスト形式で記述できること（各ボトルは色の配列で表現）
 4. When パズル入力が与えられた場合、the Water Sort Solver CLI shall ボトル数と各ボトルの容量（色セグメント数）を認識すること
@@ -36,12 +36,13 @@ Water Sort Puzzle ソルバ CLI は、ウォーターソートパズル（カラ
 
 #### 受け入れ基準
 
-1. When 有効なパズル状態が入力された場合、the Water Sort Solver CLI shall BFS（幅優先探索）またはA\*アルゴリズムで解を探索すること
+1. When 有効なパズル状態が入力された場合、the Water Sort Solver CLI shall BFS（幅優先探索）または DFS（深さ優先探索）アルゴリズムで解を探索すること
 2. The Water Sort Solver CLI shall 解が存在する場合に有効な移動手順（ボトル番号のペア列）を返すこと
-3. The Water Sort Solver CLI shall `--strategy` オプションで `bfs`（最短手数）または `dfs`（高速探索）を選択できること
+3. The Water Sort Solver CLI shall `--strategy` オプションで `bfs`（最短手数・デフォルト）または `dfs`（高速探索）を選択できること
 4. While 解探索が実行中の場合、the Water Sort Solver CLI shall `--timeout` オプションで指定された秒数（デフォルト 30 秒）以内に探索を完了すること
-5. If 解が存在しない場合、the Water Sort Solver CLI shall 「このパズルは解決不可能です」と報告すること
-6. If タイムアウトが発生した場合、the Water Sort Solver CLI shall タイムアウトを通知してプロセスを終了すること
+5. The Water Sort Solver CLI shall `--timeout 0` または `--no-timeout` を指定した場合、タイムアウトなしで解を探索し続けること
+6. If 解が存在しない場合、the Water Sort Solver CLI shall 「このパズルは解決不可能です」と報告すること
+7. If タイムアウトが発生した場合、the Water Sort Solver CLI shall タイムアウトを通知してプロセスを終了すること
 
 ### 要件 4: 解法の表示
 
@@ -74,6 +75,6 @@ Water Sort Puzzle ソルバ CLI は、ウォーターソートパズル（カラ
 #### 受け入れ基準
 
 1. If 入力ファイルが存在しない場合、the Water Sort Solver CLI shall 「ファイルが見つかりません: {パス}」というエラーメッセージを表示すること
-2. If 入力ファイルの形式が不正な場合、the Water Sort Solver CLI shall 解析エラーの行番号と内容を含むエラーメッセージを表示すること
+2. If 入力ファイルの形式が不正な場合、the Water Sort Solver CLI shall エラーの種類（例: 「色名が不正」「ボトルの容量が一致しない」など）と期待するフォーマットを示すエラーメッセージを表示すること
 3. The Water Sort Solver CLI shall すべてのエラーメッセージを stderr に出力すること
 4. When `--debug` フラグが指定された場合、the Water Sort Solver CLI shall 探索の進捗（訪問済み状態数、経過時間）を stderr に出力すること
