@@ -45,6 +45,7 @@ class CLIArgs:
     output_path: str | None = None
     verbose: bool = False
     debug: bool = False
+    format_help: bool = False  # True の場合、input_path は使用されない
 
 
 class ParseError(ValueError):

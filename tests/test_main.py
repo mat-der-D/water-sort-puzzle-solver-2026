@@ -229,3 +229,73 @@ def test_performance_standard_puzzle():
     elapsed = time.perf_counter() - start
     assert exit_code == 0
     assert elapsed < 30.0
+
+
+# --- --input-format-help 統合テスト ---
+
+def test_input_format_help_alone_exits_0(capsys):
+    """--input-format-help 単独指定で終了コード 0 になること"""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, "main.py", "--input-format-help"],
+        capture_output=True, text=True,
+        cwd="/home/smoothpudding/Documents/dev/github/water-sort-puzzle-solver-2026",
+    )
+    assert result.returncode == 0
+
+
+def test_input_format_help_alone_has_stdout():
+    """--input-format-help 単独指定で stdout に出力があること"""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, "main.py", "--input-format-help"],
+        capture_output=True, text=True,
+        cwd="/home/smoothpudding/Documents/dev/github/water-sort-puzzle-solver-2026",
+    )
+    assert len(result.stdout) > 0
+
+
+def test_input_format_help_with_input_option():
+    """--input-format-help --input puzzle.yaml 同時指定でヘルプのみ出力・終了コード 0"""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, "main.py", "--input-format-help", "--input", "puzzle.yaml"],
+        capture_output=True, text=True,
+        cwd="/home/smoothpudding/Documents/dev/github/water-sort-puzzle-solver-2026",
+    )
+    assert result.returncode == 0
+    assert len(result.stdout) > 0
+
+
+def test_input_format_help_with_strategy_option():
+    """--input-format-help --strategy dfs 同時指定でヘルプのみ出力・終了コード 0"""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, "main.py", "--input-format-help", "--strategy", "dfs"],
+        capture_output=True, text=True,
+        cwd="/home/smoothpudding/Documents/dev/github/water-sort-puzzle-solver-2026",
+    )
+    assert result.returncode == 0
+    assert len(result.stdout) > 0
+
+
+def test_missing_input_without_format_help_exits_2():
+    """--input 未指定（--input-format-help なし）でエラー終了（終了コード 2）"""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, "main.py"],
+        capture_output=True, text=True,
+        cwd="/home/smoothpudding/Documents/dev/github/water-sort-puzzle-solver-2026",
+    )
+    assert result.returncode == 2
+
+
+def test_input_format_help_does_not_run_pipeline():
+    """--input-format-help 指定時は解析・探索処理を実行しないこと（存在しないファイルでもエラーにならない）"""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, "main.py", "--input-format-help", "--input", "nonexistent_file_xyz.yaml"],
+        capture_output=True, text=True,
+        cwd="/home/smoothpudding/Documents/dev/github/water-sort-puzzle-solver-2026",
+    )
+    assert result.returncode == 0

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from src.format_help import build_format_help_text
 from src.formatter import format_output, write_output
 from src.models import CLIArgs, ParseError, PuzzleTimeoutError
 from src.parser import parse_file
@@ -24,8 +25,15 @@ def build_parser() -> argparse.ArgumentParser:
         description="ウォーターソートパズルの解法を自動生成するCLIツール",
     )
     parser.add_argument(
+        "--input-format-help",
+        action="store_true",
+        default=False,
+        help="入力ファイルのフォーマット仕様を表示する",
+    )
+    parser.add_argument(
         "--input", "-i",
-        required=True,
+        required=False,
+        default=None,
         help="入力ファイルのパス（YAML / JSON / テキスト形式）",
     )
     parser.add_argument(
@@ -148,6 +156,15 @@ def main() -> None:
             file=sys.stderr,
         )
         sys.exit(_EXIT_ERROR)
+
+    # --input-format-help が指定された場合はヘルプを出力して早期終了
+    if namespace.input_format_help:
+        print(build_format_help_text())
+        sys.exit(_EXIT_OK)
+
+    # --input-format-help なしで --input 未指定の場合はエラー
+    if namespace.input is None:
+        parser.error("--input は必須です（--input-format-help なし時）")
 
     args = CLIArgs(
         input_path=namespace.input,
