@@ -61,14 +61,34 @@ def apply_move(state: PuzzleState, move: Move) -> PuzzleState:
     ムーブを適用した新しい PuzzleState を返す。元の state は変更しない。
     Preconditions: move は get_legal_moves() で得た合法手であること
     Postconditions: 戻り値は move 適用後の immutable PuzzleState
+
+    移動元の最上層から連続する同色セグメントをまとめて移動する（ブロック移動）。
+    ブロックサイズが移動先の空き容量を超える場合は、空き容量分だけ移動する。
     """
     bottles = list(state)
     from_b = list(bottles[move.from_bottle])
     to_b = list(bottles[move.to_bottle])
 
-    # 最上層（末尾）のセグメントを移動元から取り出す
-    segment = from_b.pop()
-    to_b.append(segment)
+    # 移動元の最上層の色
+    top_color = from_b[-1]
+
+    # 末尾から連続する同色セグメント数（ブロックサイズ）
+    block_size = 0
+    for seg in reversed(from_b):
+        if seg == top_color:
+            block_size += 1
+        else:
+            break
+
+    # 移動先の空き容量
+    available = BOTTLE_CAPACITY - len(to_b)
+
+    # 実際に移動するセグメント数
+    move_count = min(block_size, available)
+
+    # セグメントをまとめて移動（末尾 = 最上層から順に）
+    for _ in range(move_count):
+        to_b.append(from_b.pop())
 
     bottles[move.from_bottle] = tuple(from_b)
     bottles[move.to_bottle] = tuple(to_b)
