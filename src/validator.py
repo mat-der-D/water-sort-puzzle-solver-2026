@@ -6,13 +6,13 @@ from collections import Counter
 from src.models import BOTTLE_CAPACITY, PuzzleState, ValidationResult
 
 
-def is_solved(state: PuzzleState) -> bool:
-    """全ボトルが単色（同色のみ）または空の場合 True を返す。"""
+def is_solved(state: PuzzleState, bottle_capacity: int = BOTTLE_CAPACITY) -> bool:
+    """全ボトルが満杯かつ単色、または空の場合 True を返す。"""
     for bottle in state:
         if len(bottle) == 0:
             continue
-        # ボトル内に複数の異なる色がある場合は未解決
-        if len(set(bottle)) > 1:
+        # 満杯でない、または複数の異なる色がある場合は未解決
+        if len(bottle) != bottle_capacity or len(set(bottle)) > 1:
             return False
     return True
 
@@ -54,7 +54,7 @@ def validate(
             ),
         )
 
-    already_solved = is_solved(state)
+    already_solved = is_solved(state, bottle_capacity)
     return ValidationResult(
         valid=True,
         already_solved=already_solved,
